@@ -18,7 +18,7 @@ fn sample_dist(dist: Vec<f32>) -> usize {
             return i;
         }
     }
-    dist.len()
+    dist.len() - 1
 }
 
 pub struct MK {
@@ -85,7 +85,7 @@ impl MK {
 
         let mut err = 0;
         match clique_type {
-            Conn4 => {
+            CliqueType::Conn4 => {
                 /* energie des cliques d'ordre 1 verticale */
                 if x != self.width - 1 && (c != self.get(x + 1, y)) {
                     err += 1;
@@ -101,7 +101,7 @@ impl MK {
                     err += 1;
                 }
             }
-            Conn8 => {
+            CliqueType::Conn8 => {
                 /* energie des cliques d'ordre 1 verticale */
                 if x != self.width - 1 && (c != self.get(x + 1, y)) {
                     err += 1;
