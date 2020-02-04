@@ -4,6 +4,14 @@ version = "0.1.0"
 authors = ["Alexandre Kirszenberg <alexandre.kirszenberg@epita.fr>"]
 edition = "2018"
 
+[lib]
+name = "markov"
+path = "src/lib.rs"
+
+[[bin]]
+name = "markov"
+path = "src/bin.rs"
+
 [dependencies]
 image = "0.22.4"
 rand = "0.7.3"
