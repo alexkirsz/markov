@@ -12,7 +12,7 @@ pub struct Point {
 fn compute_cluster_barycenters(clustered_points: &[Point], n_clusters: usize) -> Vec<Vec3> {
     (0..n_clusters)
         .into_par_iter()
-        .map(|cluster| {
+        .filter_map(|cluster| {
             let cluster_points: Vec<_> = clustered_points
                 .iter()
                 .filter_map(|pt| {
@@ -23,12 +23,19 @@ fn compute_cluster_barycenters(clustered_points: &[Point], n_clusters: usize) ->
                     }
                 })
                 .collect();
-            let len = cluster_points.len() as f32;
-            cluster_points
-                .into_par_iter()
-                .map(|pt| pt.coords)
-                .sum::<Vec3>()
-                / len
+            if cluster_points.len() == 0 {
+                None
+            } else {
+                let len = cluster_points.len() as f32;
+
+                Some(
+                    cluster_points
+                        .into_par_iter()
+                        .map(|pt| pt.coords)
+                        .sum::<Vec3>()
+                        / len,
+                )
+            }
         })
         .collect()
 }

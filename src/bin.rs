@@ -31,7 +31,7 @@ fn main() {
 
     let (points, barycenters) = kmeans(&values, &random_barycenters(&values, 8), 0.001);
 
-    println!("K-Means done");
+    println!("K-Means done, kept {} clusters", barycenters.len());
 
     let mk = MK {
         width: width as usize,
@@ -46,7 +46,7 @@ fn main() {
         x: points.iter().map(|p| p.cluster).collect(),
     };
 
-    let mk_res = mk.recuit_simule(10, CliqueType::Conn4, 1.0, 1.0);
+    let mk_res = mk.recuit_simule(10, CliqueType::Conn8, 10.0, 1.0);
     println!("MK done");
 
     let out = image::RgbImage::from_fn(width, height, |x, y| {

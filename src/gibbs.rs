@@ -132,6 +132,7 @@ impl MK {
                 }
             }
         }
+
         c_dist + beta * err as f32
     }
 
