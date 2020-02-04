@@ -127,3 +127,12 @@ impl Div<f32> for Vec3 {
         )
     }
 }
+
+impl std::iter::Sum<Vec3> for Vec3 {
+    fn sum<I>(iter: I) -> Vec3
+    where
+        I: Iterator<Item = Vec3>,
+    {
+        iter.fold(Vec3::zero(), |acc, v| acc + v)
+    }
+}

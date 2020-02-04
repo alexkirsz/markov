@@ -1,5 +1,6 @@
 use super::vec3::Vec3;
 use rand::prelude::*;
+use rayon::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct Point {
@@ -10,6 +11,7 @@ pub struct Point {
 
 fn compute_cluster_barycenters(clustered_points: &[Point], n_clusters: usize) -> Vec<Vec3> {
     (0..n_clusters)
+        .into_par_iter()
         .map(|cluster| {
             let cluster_points: Vec<_> = clustered_points
                 .iter()
@@ -23,8 +25,9 @@ fn compute_cluster_barycenters(clustered_points: &[Point], n_clusters: usize) ->
                 .collect();
             let len = cluster_points.len() as f32;
             cluster_points
-                .into_iter()
-                .fold(Vec3::zero(), |acc, pt| acc + pt.coords)
+                .into_par_iter()
+                .map(|pt| pt.coords)
+                .sum::<Vec3>()
                 / len
         })
         .collect()
