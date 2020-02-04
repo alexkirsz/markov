@@ -30,7 +30,74 @@ fn compute_cluster_barycenters(barycenters: &mut [Vec3], clustered_points: &[Poi
     }
 }
 
-pub fn kmeans(coords: &[Vec3], n_classes: usize) -> Vec<Point> {
+fn assign_to_barycenters(clustered_points: &mut [Point], barycenters: &[Vec3]) -> bool {
+    let mut changed = false;
+
+    for (cluster, barycenter) in barycenters.iter().enumerate() {
+        for point in clustered_points.iter_mut() {
+            let dist = (point.coords - barycenter).norm();
+            if dist < point.distance_to_cluster {
+                point.cluster = cluster;
+                point.distance_to_cluster = dist;
+                changed = true;
+            }
+        }
+    }
+
+    changed
+}
+
+fn min_max(elements: &[f32]) -> (f32, f32) {
+    use std::cmp::Ordering;
+
+    (
+        *elements
+            .iter()
+            .min_by(|a, b| {
+                if a < b {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            })
+            .unwrap(),
+        *elements
+            .iter()
+            .max_by(|a, b| {
+                if a < b {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            })
+            .unwrap(),
+    )
+}
+
+pub fn random_barycenters(coords: &[Vec3], n_classes: usize) -> Vec<Vec3> {
+    let (min_x, max_x) = min_max(&coords.iter().map(|v| v.x).collect::<Vec<_>>());
+    let (min_y, max_y) = min_max(&coords.iter().map(|v| v.y).collect::<Vec<_>>());
+    let (min_z, max_z) = min_max(&coords.iter().map(|v| v.z).collect::<Vec<_>>());
+    let x_range = max_x - min_x;
+    let y_range = max_y - min_y;
+    let z_range = max_z - min_z;
+
+    let mut rng = rand::thread_rng();
+
+    (0..n_classes)
+        .map(|_| {
+            Vec3::new(
+                min_x + rng.gen::<f32>() * x_range,
+                min_y + rng.gen::<f32>() * y_range,
+                min_z + rng.gen::<f32>() * z_range,
+            )
+        })
+        .collect()
+}
+
+pub fn kmeans(coords: &[Vec3], initial_barycenters: &[Vec3]) -> Vec<Point> {
+    let n_classes = initial_barycenters.len();
+
     assert!(n_classes > 0);
     assert!(coords.len() > 0);
 
@@ -48,24 +115,19 @@ pub fn kmeans(coords: &[Vec3], n_classes: usize) -> Vec<Point> {
             distance_to_cluster: std::f32::INFINITY,
         })
         .collect();
-    let mut cluster_barycenters: Vec<_> = (0..n_classes).map(|_| Vec3::zero()).collect();
+
+    let mut barycenters = initial_barycenters.to_owned();
+
+    assign_to_barycenters(&mut clustered_points, &barycenters);
 
     let mut changed = true;
     while changed {
         changed = false;
 
-        compute_cluster_barycenters(&mut cluster_barycenters, &clustered_points);
+        compute_cluster_barycenters(&mut barycenters, &clustered_points);
 
-        for (cluster, barycenter) in cluster_barycenters.iter().enumerate() {
-            for point in &mut clustered_points {
-                let dist = (point.coords - barycenter).norm();
-                if dist < point.distance_to_cluster {
-                    point.cluster = cluster;
-                    point.distance_to_cluster = dist;
-                    changed = true;
-                }
-            }
-        }
+        // Beware of boolean operator laziness!
+        changed = assign_to_barycenters(&mut clustered_points, &barycenters) || changed;
     }
 
     clustered_points
