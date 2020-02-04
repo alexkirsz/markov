@@ -8,6 +8,6 @@ fn main() {
         Vec3::new(0.0, -3.0, 0.0),
     ];
 
-    let points = kmeans(&coords, &random_barycenters(&coords, 2));
+    let points = kmeans(&coords, &random_barycenters(&coords, 2), 0.001);
     dbg!(points);
 }

@@ -8,9 +8,9 @@ pub struct Point {
     pub distance_to_cluster: f32,
 }
 
-fn compute_cluster_barycenters(barycenters: &mut [Vec3], clustered_points: &[Point]) {
-    for (cluster, barycenter) in barycenters.iter_mut().enumerate() {
-        *barycenter = {
+fn compute_cluster_barycenters(clustered_points: &[Point], n_clusters: usize) -> Vec<Vec3> {
+    (0..n_clusters)
+        .map(|cluster| {
             let cluster_points: Vec<_> = clustered_points
                 .iter()
                 .filter_map(|pt| {
@@ -26,25 +26,20 @@ fn compute_cluster_barycenters(barycenters: &mut [Vec3], clustered_points: &[Poi
                 .into_iter()
                 .fold(Vec3::zero(), |acc, pt| acc + pt.coords)
                 / len
-        };
-    }
+        })
+        .collect()
 }
 
-fn assign_to_barycenters(clustered_points: &mut [Point], barycenters: &[Vec3]) -> bool {
-    let mut changed = false;
-
+fn assign_to_barycenters(clustered_points: &mut [Point], barycenters: &[Vec3]) {
     for (cluster, barycenter) in barycenters.iter().enumerate() {
         for point in clustered_points.iter_mut() {
             let dist = (point.coords - barycenter).norm();
             if dist < point.distance_to_cluster {
                 point.cluster = cluster;
                 point.distance_to_cluster = dist;
-                changed = true;
             }
         }
     }
-
-    changed
 }
 
 fn min_max(elements: &[f32]) -> (f32, f32) {
@@ -74,7 +69,7 @@ fn min_max(elements: &[f32]) -> (f32, f32) {
     )
 }
 
-pub fn random_barycenters(coords: &[Vec3], n_classes: usize) -> Vec<Vec3> {
+pub fn random_barycenters(coords: &[Vec3], n_clusters: usize) -> Vec<Vec3> {
     let (min_x, max_x) = min_max(&coords.iter().map(|v| v.x).collect::<Vec<_>>());
     let (min_y, max_y) = min_max(&coords.iter().map(|v| v.y).collect::<Vec<_>>());
     let (min_z, max_z) = min_max(&coords.iter().map(|v| v.z).collect::<Vec<_>>());
@@ -84,7 +79,7 @@ pub fn random_barycenters(coords: &[Vec3], n_classes: usize) -> Vec<Vec3> {
 
     let mut rng = rand::thread_rng();
 
-    (0..n_classes)
+    (0..n_clusters)
         .map(|_| {
             Vec3::new(
                 min_x + rng.gen::<f32>() * x_range,
@@ -95,15 +90,19 @@ pub fn random_barycenters(coords: &[Vec3], n_classes: usize) -> Vec<Vec3> {
         .collect()
 }
 
-pub fn kmeans(coords: &[Vec3], initial_barycenters: &[Vec3]) -> Vec<Point> {
-    let n_classes = initial_barycenters.len();
+pub fn kmeans(
+    coords: &[Vec3],
+    initial_barycenters: &[Vec3],
+    stop_dist: f32,
+) -> (Vec<Point>, Vec<Vec3>) {
+    let n_clusters = initial_barycenters.len();
 
-    assert!(n_classes > 0);
+    assert!(n_clusters > 0);
     assert!(coords.len() > 0);
 
     let mut rng = rand::thread_rng();
 
-    let mut cluster_assignments: Vec<_> = (0..coords.len()).map(|i| i % n_classes).collect();
+    let mut cluster_assignments: Vec<_> = (0..coords.len()).map(|i| i % n_clusters).collect();
     cluster_assignments.shuffle(&mut rng);
 
     let mut clustered_points: Vec<_> = coords
@@ -124,11 +123,22 @@ pub fn kmeans(coords: &[Vec3], initial_barycenters: &[Vec3]) -> Vec<Point> {
     while changed {
         changed = false;
 
-        compute_cluster_barycenters(&mut barycenters, &clustered_points);
+        let next_barycenters = compute_cluster_barycenters(&clustered_points, n_clusters);
 
-        // Beware of boolean operator laziness!
-        changed = assign_to_barycenters(&mut clustered_points, &barycenters) || changed;
+        let dist: f32 = next_barycenters
+            .iter()
+            .zip(&barycenters)
+            .map(|(a, b)| (a - b).norm())
+            .sum();
+
+        barycenters = next_barycenters;
+
+        if dist < stop_dist {
+            break;
+        }
+
+        assign_to_barycenters(&mut clustered_points, &barycenters);
     }
 
-    clustered_points
+    (clustered_points, barycenters)
 }
