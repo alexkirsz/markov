@@ -119,23 +119,17 @@ pub fn kmeans(
 
     assign_to_barycenters(&mut clustered_points, &barycenters);
 
-    let mut changed = true;
-    while changed {
-        changed = false;
-
+    let mut dist = std::f32::INFINITY;
+    while dist > stop_dist {
         let next_barycenters = compute_cluster_barycenters(&clustered_points, n_clusters);
 
-        let dist: f32 = next_barycenters
+        dist = next_barycenters
             .iter()
             .zip(&barycenters)
             .map(|(a, b)| (a - b).norm())
             .sum();
 
         barycenters = next_barycenters;
-
-        if dist < stop_dist {
-            break;
-        }
 
         assign_to_barycenters(&mut clustered_points, &barycenters);
     }
