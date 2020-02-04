@@ -1,4 +1,4 @@
-use markov::{kmeans, random_barycenters, Vec3};
+use markov::{kmeans, random_barycenters, CliqueType, Vec3, MK};
 
 fn main() {
     let args: Vec<_> = std::env::args().collect();
@@ -27,11 +27,33 @@ fn main() {
         })
         .collect();
 
+    println!("K-Means");
+
     let (points, barycenters) = kmeans(&values, &random_barycenters(&values, 8), 0.001);
 
+    println!("K-Means done");
+
+    let mk = MK {
+        width: width as usize,
+        height: height as usize,
+        num_classes: barycenters.len(),
+
+        dist: points
+            .iter()
+            .map(|p| p.coords)
+            .map(|p| barycenters.iter().map(|b| (b - p).norm()).collect())
+            .collect(),
+        x: points.iter().map(|p| p.cluster).collect(),
+    };
+
+    let mk_res = mk.recuit_simule(10, CliqueType::Conn4, 1.0, 1.0);
+    println!("MK done");
+
     let out = image::RgbImage::from_fn(width, height, |x, y| {
-        let vec = &points[(y * width + x) as usize];
-        let clr = barycenters[vec.cluster];
+        // let vec = &points[(y * width + x) as usize];
+        // let clr = barycenters[vec.cluster];
+        let cluster = mk_res[(y * width + x) as usize];
+        let clr = barycenters[cluster];
         image::Rgb([
             (clr.x * 255.0).round() as u8,
             (clr.y * 255.0).round() as u8,
