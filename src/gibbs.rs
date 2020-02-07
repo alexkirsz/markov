@@ -1,8 +1,6 @@
 // Originally from http://www.tsi.enst.fr/pages/enseignement/ressources/beti/markov/code.txt
 // Adapted to Rust by Victor Collod and Alexandre Kirszenberg
 
-use rand::prelude::*;
-
 #[derive(Debug, Copy, Clone)]
 pub enum CliqueType {
     Conn4,
@@ -41,31 +39,28 @@ impl MK {
 
     fn gibbs_sampler(
         &self,
-        n: usize,                /* nombre d'itérations */
-        t: f32,                  /* température */
-        clique_type: CliqueType, /* type de clique */
-        beta: f32,               /* coeff de régularisation de potts*/
+        t: f32,
+        clique_type: CliqueType,
+        beta: f32,
     ) -> Vec<usize> /* réalisation du champ de markov */ {
         let mut out = vec![0usize; self.width * self.height];
 
-        for _ in 0..n {
-            for (x_start, y_start) in vec![(0, 0), (1, 1), (0, 1), (1, 0)] {
-                for x in (x_start..self.width).step_by(2) {
-                    for y in (y_start..self.height).step_by(2) {
-                        /* for each class, find the energy for the current pixel */
-                        let u: Vec<_> = (0..self.num_classes)
-                            .map(|c| self.energie_cliques(&out, (x, y), c, clique_type, beta))
-                            .collect();
+        for (x_start, y_start) in &[(0, 0), (1, 1), (0, 1), (1, 0)] {
+            for x in (*x_start..self.width).step_by(2) {
+                for y in (*y_start..self.height).step_by(2) {
+                    /* for each class, find the energy for the current pixel */
+                    let u: Vec<_> = (0..self.num_classes)
+                        .map(|c| self.energy((x, y), c, clique_type, beta))
+                        .collect();
 
-                        let pr: Vec<_> = u.iter().map(|x| (-x / t).exp()).collect();
+                    let pr: Vec<_> = u.iter().map(|x| (-x / t).exp()).collect();
 
-                        /* the probability distribution */
-                        let pr_tot = pr.iter().sum::<f32>();
-                        let p: Vec<_> = pr.iter().map(|x| x / pr_tot).collect();
+                    /* the probability distribution */
+                    let pr_tot = pr.iter().sum::<f32>();
+                    let p: Vec<_> = pr.iter().map(|x| x / pr_tot).collect();
 
-                        /* take a random sample following the given distribution */
-                        out[self.pos(x, y)] = sample_dist(p);
-                    }
+                    /* take a random sample following the given distribution */
+                    out[self.pos(x, y)] = sample_dist(p);
                 }
             }
         }
@@ -73,70 +68,39 @@ impl MK {
         out
     }
 
-    fn energie_cliques(
-        &self,
-        labels: &[usize],
-        (x, y): (usize, usize),
-        c: usize,
-        clique_type: CliqueType,
-        beta: f32,
-    ) -> f32 {
-        let c_dist = self.dist[self.pos(x, y)][c];
+    fn energy(&self, (x, y): (usize, usize), c: usize, clique_type: CliqueType, beta: f32) -> f32 {
+        let color_dist = self.dist[self.pos(x, y)][c];
 
-        let mut err = 0;
-        match clique_type {
-            CliqueType::Conn4 => {
-                /* energie des cliques d'ordre 1 verticale */
-                if x != self.width - 1 && (c != self.get(x + 1, y)) {
-                    err += 1;
-                }
-                if x != 0 && (c != self.get(x - 1, y)) {
-                    err += 1;
-                }
-                /* energie des cliques d'ordre 1 horizontale */
-                if y != self.height - 1 && (c != self.get(x, y + 1)) {
-                    err += 1;
-                }
-                if y != 0 && (c != self.get(x, y - 1)) {
-                    err += 1;
-                }
-            }
-            CliqueType::Conn8 => {
-                /* energie des cliques d'ordre 1 verticale */
-                if x != self.width - 1 && (c != self.get(x + 1, y)) {
-                    err += 1;
-                }
-                if x != 0 && (c != self.get(x - 1, y)) {
-                    err += 1;
-                }
-                /* energie des cliques d'ordre 1 horizontale */
-                if y != self.height - 1 && (c != self.get(x, y + 1)) {
-                    err += 1;
-                }
-                if y != 0 && (c != self.get(x, y - 1)) {
-                    err += 1;
-                }
-                /* energie des cliques d'ordre 1 diagonale */
-                if x != self.width - 1 && y != self.height - 1 && (c != self.get(x + 1, y + 1)) {
-                    err += 1;
-                }
-                if x != self.width - 1 && y != 0 && (c != self.get(x + 1, y - 1)) {
-                    err += 1;
-                }
-                /* energie des cliques d'ordre 1 diagonale */
-                if x != 0 && y != self.height - 1 && (c != self.get(x - 1, y + 1)) {
-                    err += 1;
-                }
-                if x != 0 && y != 0 && (c != self.get(x - 1, y - 1)) {
-                    err += 1;
-                }
-            }
-        }
+        let neighbors: &[(isize, isize)] = match clique_type {
+            CliqueType::Conn4 => &[(-1, 0), (1, 0), (0, -1), (0, 1)],
+            CliqueType::Conn8 => &[
+                (-1, -1),
+                (0, -1),
+                (1, -1),
+                (-1, 0),
+                (1, 0),
+                (-1, 1),
+                (0, 1),
+                (1, 1),
+            ],
+        };
 
-        c_dist + beta * err as f32
+        let err = neighbors.iter().fold(0usize, |sum, (dx, dy)| {
+            let nx = x as isize + *dx;
+            let ny = y as isize + *dy;
+
+            if !(nx < 0 || ny < 0 || nx >= self.width as isize || ny >= self.height as isize)
+                && c != self.get(nx as usize, ny as usize)
+            {
+                sum + 1
+            } else {
+                sum
+            }
+        });
+        color_dist + beta * err as f32
     }
 
-    pub fn recuit_simule(
+    pub fn simulated_annealing(
         mut self,
         n: usize,
         clique_type: CliqueType,
@@ -146,7 +110,7 @@ impl MK {
         for k in 0..n {
             println!("iteration {}/{}", k, n);
             let t = t_init * (0.1f32.powf(k as f32 / n as f32) - 0.05);
-            self.x = self.gibbs_sampler(1, t, clique_type, beta);
+            self.x = self.gibbs_sampler(t, clique_type, beta);
         }
 
         self.x
