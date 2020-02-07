@@ -37,12 +37,8 @@ impl MK {
         self.x[self.pos(x, y)]
     }
 
-    fn gibbs_sampler(
-        &self,
-        t: f32,
-        clique_type: CliqueType,
-        beta: f32,
-    ) -> Vec<usize> /* réalisation du champ de markov */ {
+    fn gibbs_sampler(&self, t: f32, clique_type: CliqueType, beta: f32) -> Vec<usize> /* réalisation du champ de markov */
+    {
         let mut out = vec![0usize; self.width * self.height];
 
         for (x_start, y_start) in &[(0, 0), (1, 1), (0, 1), (1, 0)] {
