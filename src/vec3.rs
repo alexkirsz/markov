@@ -1,3 +1,4 @@
+use palette::Lab;
 use std::ops::{Add, Div, Sub};
 #[derive(Debug, Copy, Clone)]
 pub struct Vec3 {
@@ -26,6 +27,16 @@ impl From<[f32; 3]> for Vec3 {
             x: arr[0],
             y: arr[1],
             z: arr[2],
+        }
+    }
+}
+
+impl From<Lab> for Vec3 {
+    fn from(arr: Lab) -> Vec3 {
+        Vec3 {
+            x: arr.l,
+            y: arr.a,
+            z: arr.b,
         }
     }
 }
