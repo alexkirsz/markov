@@ -16,7 +16,7 @@ name = "markov"
 path = "src/lib.rs"
 
 [[bin]]
-name = "markov"
+name = "cmkv"
 path = "src/bin.rs"
 
 [dependencies]
