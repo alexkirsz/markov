@@ -1,4 +1,4 @@
-use markov::process_img;
+use markov::{process_img, CliqueType};
 
 fn main() {
     let args: Vec<_> = std::env::args().collect();
@@ -14,6 +14,6 @@ fn main() {
     let img = image::open(input).expect("Failed to load input image");
 
     let rgb = img.to_rgb();
-    let out = process_img(&rgb);
+    let out = process_img(&rgb, 10, CliqueType::Conn8, 1.0, 1.0);
     out.save(output).expect("Failed to save output image");
 }

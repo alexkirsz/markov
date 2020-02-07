@@ -33,7 +33,7 @@ image = { version = "0.22.5", default-features = false, features = [
   "hdr",
   "dxt"
 ] }
-rand = "0.7.3"
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 rayon = "1.3.0"
 permutohedron = "0.2.4"
 palette = "*"

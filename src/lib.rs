@@ -17,7 +17,13 @@ pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
-pub fn process_img(rgb: &image::RgbImage) -> image::RgbImage {
+pub fn process_img(
+    rgb: &image::RgbImage,
+    n: usize,
+    clique_type: CliqueType,
+    beta: f32,
+    t_init: f32,
+) -> image::RgbImage {
     use permutohedron::heap_recursive;
 
     let (width, height) = rgb.dimensions();
@@ -66,7 +72,7 @@ pub fn process_img(rgb: &image::RgbImage) -> image::RgbImage {
         x: points.iter().map(|p| p.cluster).collect(),
     };
 
-    let mk_res = mk.simulated_annealing(10, CliqueType::Conn8, 1.0, 1.0);
+    let mk_res = mk.simulated_annealing(n, clique_type, beta, t_init);
     println!("MK done");
 
 
@@ -110,4 +116,43 @@ pub fn process_img(rgb: &image::RgbImage) -> image::RgbImage {
     });
 
     out
+}
+
+#[cfg(feature = "web")]
+#[wasm_bindgen]
+pub struct WasmMK {
+    img: image::DynamicImage,
+}
+
+#[cfg(feature = "web")]
+#[wasm_bindgen]
+impl WasmMK {
+    #[wasm_bindgen]
+    pub fn new(img: &[u8]) -> Result<WasmMK, JsValue> {
+        match image::load_from_memory(img) {
+            Ok(img) => Ok(WasmMK { img }),
+            Err(e) => Err(js_sys::Error::new(&e.to_string()).into()),
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn process(&self, n: u32, beta: f32, t_init: f32, c8: bool) -> Result<Vec<u8>, JsValue> {
+        let res = process_img(
+            &self.img.to_rgb(),
+            n as usize,
+            if c8 {
+                CliqueType::Conn8
+            } else {
+                CliqueType::Conn4
+            },
+            beta,
+            t_init,
+        );
+        let mut out = Vec::new();
+        let encoder = image::png::PNGEncoder::new(&mut out);
+        match encoder.encode(&res, res.width(), res.height(), image::ColorType::RGB(8)) {
+            Err(e) => Err(js_sys::Error::new(&e.to_string()).into()),
+            Ok(_) => Ok(out),
+        }
+    }
 }

@@ -1,5 +1,6 @@
 use super::vec3::Vec3;
 use rand::prelude::*;
+#[cfg(not(feature = "web"))]
 use rayon::prelude::*;
 
 #[derive(Debug, Clone)]
@@ -9,9 +10,24 @@ pub struct Point {
     pub distance_to_cluster: f32,
 }
 
+#[cfg(feature = "web")]
+fn parallel_if_supported<TIter>(iter: TIter) -> TIter::IntoIter
+where
+    TIter: IntoIterator,
+{
+    iter.into_iter()
+}
+
+#[cfg(not(feature = "web"))]
+fn parallel_if_supported<TIter>(iter: TIter) -> TIter::Iter
+where
+    TIter: rayon::iter::IntoParallelIterator,
+{
+    iter.into_par_iter()
+}
+
 fn compute_cluster_barycenters(clustered_points: &[Point], n_clusters: usize) -> Vec<Vec3> {
-    (0..n_clusters)
-        .into_par_iter()
+    parallel_if_supported(0..n_clusters)
         .filter_map(|cluster| {
             let cluster_points: Vec<_> = clustered_points
                 .iter()
@@ -27,10 +43,8 @@ fn compute_cluster_barycenters(clustered_points: &[Point], n_clusters: usize) ->
                 None
             } else {
                 let len = cluster_points.len() as f32;
-
                 Some(
-                    cluster_points
-                        .into_par_iter()
+                    parallel_if_supported(cluster_points)
                         .map(|pt| pt.coords)
                         .sum::<Vec3>()
                         / len,
